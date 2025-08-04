@@ -26,6 +26,18 @@ This initial step uses Apache Spark to ingest the raw IPL data, clean it, perfor
     docker run --rm -v "$(pwd):/app" spark-env:latest spark-submit scripts/ingest_and_process.py
     ```
 
+Let's quickly break down this command:
+
+docker run: The command to start a new container.
+
+--rm: Automatically removes the container when the script finishes. This keeps things clean.
+
+-v "$(pwd):/app": This is the most important part. It mounts your current project directory ($(pwd)) into the /app directory inside the container. This allows the script inside the container to access your data/ and scripts/ folders.
+
+spark-env:latest: The name of the image we want to use.
+
+spark-submit scripts/ingest_and_process.py: This is the command that gets executed inside the container. It tells Spark to run our Python script.
+
 ### Expected Outcome
 
 After the script runs successfully, a new directory will be created at `data/processed/processed_ipl_data.parquet`, containing the final, feature-engineered dataset ready for model training.
