@@ -22,6 +22,8 @@ This initial step uses Apache Spark to ingest the raw IPL data, clean it, perfor
 2.  **Run the Spark Processing Script:**
     This command executes the `ingest_and_process.py` script inside a new container.
 
+    **Note for Windows Users:** If you are using Command Prompt (cmd.exe), replace `$(pwd)` with `%cd%`. If you are using PowerShell, replace `$(pwd)` with `${pwd}`.
+
     ```bash
     docker run --rm -v "$(pwd):/app" spark-env:latest spark-submit scripts/ingest_and_process.py
     ```
@@ -36,5 +38,19 @@ This initial step uses Apache Spark to ingest the raw IPL data, clean it, perfor
 
 After the script runs successfully, a new directory will be created at `data/processed/processed_ipl_data.parquet`, containing the final, feature-engineered dataset ready for model training.
 
+<details>
+<summary>Click to see a sample of the successful log output</summary>
+
+```
+- INFO - Spark session created successfully.
+- INFO - Loading raw matches data from /app/data/raw/matches.csv...
+- INFO - Loading raw ball-by-ball data from /app/data/raw/deliveries.csv...
+- INFO - Starting data cleaning and preprocessing...
+- INFO - Starting feature engineering...
+- INFO - Data processing complete and saved successfully...
+INFO ShutdownHookManager: Shutdown hook called
+```
+</details>
+
 ---
-*(We will add sections for Training, Deployment, and Monitoring here as we build them.)*
+
