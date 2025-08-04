@@ -1,0 +1,35 @@
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
+
+# Set environment variables for Spark
+ENV SPARK_VERSION=3.3.1
+ENV HADOOP_VERSION=3
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$SPARK_HOME/bin:$PATH
+ENV PYSPARK_PYTHON=python
+ENV PYSPARK_DRIVER_PYTHON=python
+
+# Install dependencies including Java (required for Spark)
+# FIX: Added 'procps' which provides the 'ps' command needed by Spark's scripts.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    tini \
+    default-jre-headless \
+    procps && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and install Spark
+RUN curl -sL "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz" | \
+    tar -xz -C /opt && \
+    mv /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} ${SPARK_HOME}
+
+# Install Python libraries
+RUN pip install --no-cache-dir pyspark==${SPARK_VERSION}
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Use tini to manage zombie processes and signal forwarding
+ENTRYPOINT ["/usr/bin/tini", "--"]
