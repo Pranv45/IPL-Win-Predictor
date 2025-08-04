@@ -1,0 +1,9 @@
+# Ignore Python virtual environments and cache
+__pycache__/
+*.pyc
+.venv/
+
+# Ignore processed data and other derivatives
+/data/processed/
+/app/models/
+*.pkl
