@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Win Predictor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            margin-top: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            color: #333;
+            margin: 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .result-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .prediction-text {
+            font-size: 1.2em;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .confidence-text {
+            color: #666;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #c33;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #333;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IPL Win Predictor</h1>
+        <p class="subtitle">Predict the outcome of IPL matches using our advanced machine learning model</p>
+
+        <form id="predictionForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="team1">Team 1</label>
+                    <select id="team1" name="team1" required>
+                        <option value="">Select Team 1</option>
+                        <option value="Mumbai Indians">Mumbai Indians</option>
+                        <option value="Chennai Super Kings">Chennai Super Kings</option>
+                        <option value="Royal Challengers Bangalore">Royal Challengers Bangalore</option>
+                        <option value="Kolkata Knight Riders">Kolkata Knight Riders</option>
+                        <option value="Delhi Capitals">Delhi Capitals</option>
+                        <option value="Punjab Kings">Punjab Kings</option>
+                        <option value="Rajasthan Royals">Rajasthan Royals</option>
+                        <option value="Sunrisers Hyderabad">Sunrisers Hyderabad</option>
+                        <option value="Gujarat Lions">Gujarat Lions</option>
+                        <option value="Rising Pune Supergiants">Rising Pune Supergiants</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="team2">Team 2</label>
+                    <select id="team2" name="team2" required>
+                        <option value="">Select Team 2</option>
+                        <option value="Mumbai Indians">Mumbai Indians</option>
+                        <option value="Chennai Super Kings">Chennai Super Kings</option>
+                        <option value="Royal Challengers Bangalore">Royal Challengers Bangalore</option>
+                        <option value="Kolkata Knight Riders">Kolkata Knight Riders</option>
+                        <option value="Delhi Capitals">Delhi Capitals</option>
+                        <option value="Punjab Kings">Punjab Kings</option>
+                        <option value="Rajasthan Royals">Rajasthan Royals</option>
+                        <option value="Sunrisers Hyderabad">Sunrisers Hyderabad</option>
+                        <option value="Gujarat Lions">Gujarat Lions</option>
+                        <option value="Rising Pune Supergiants">Rising Pune Supergiants</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="venue">Venue</label>
+                    <select id="venue" name="venue" required>
+                        <option value="">Select Venue</option>
+                        <option value="Wankhede Stadium">Wankhede Stadium</option>
+                        <option value="M. Chinnaswamy Stadium">M. Chinnaswamy Stadium</option>
+                        <option value="Eden Gardens">Eden Gardens</option>
+                        <option value="Arun Jaitley Stadium">Arun Jaitley Stadium</option>
+                        <option value="Punjab Cricket Association Stadium">Punjab Cricket Association Stadium</option>
+                        <option value="Sawai Mansingh Stadium">Sawai Mansingh Stadium</option>
+                        <option value="Rajiv Gandhi International Stadium">Rajiv Gandhi International Stadium</option>
+                        <option value="Saurashtra Cricket Association Stadium">Saurashtra Cricket Association Stadium</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <select id="city" name="city" required>
+                        <option value="">Select City</option>
+                        <option value="Mumbai">Mumbai</option>
+                        <option value="Bangalore">Bangalore</option>
+                        <option value="Kolkata">Kolkata</option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Mohali">Mohali</option>
+                        <option value="Jaipur">Jaipur</option>
+                        <option value="Hyderabad">Hyderabad</option>
+                        <option value="Rajkot">Rajkot</option>
+                        <option value="Pune">Pune</option>
+                        <option value="Ahmedabad">Ahmedabad</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3 class="section-title">Team Statistics (0.0 - 1.0)</h3>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label id="team1Label" for="team1_win_percentage">Win Percentage</label>
+                    <input type="number" id="team1_win_percentage" name="team1_win_percentage" step="0.01" min="0" max="1" value="0.5" required>
+                </div>
+
+                <div class="form-group">
+                    <label id="team2Label" for="team2_win_percentage">Win Percentage</label>
+                    <input type="number" id="team2_win_percentage" name="team2_win_percentage" step="0.01" min="0" max="1" value="0.5" required>
+                </div>
+
+                <div class="form-group">
+                    <label id="team1FormLabel" for="team1_recent_form">Recent Form</label>
+                    <input type="number" id="team1_recent_form" name="team1_recent_form" step="0.01" min="0" max="1" value="0.5">
+                </div>
+
+                <div class="form-group">
+                    <label id="team2FormLabel" for="team2_recent_form">Recent Form</label>
+                    <input type="number" id="team2_recent_form" name="team2_recent_form" step="0.01" min="0" max="1" value="0.5">
+                </div>
+
+                <div class="form-group">
+                    <label id="team1H2HLabel" for="team1_head_to_head">Head-to-Head</label>
+                    <input type="number" id="team1_head_to_head" name="team1_head_to_head" step="0.01" min="0" max="1" value="0.5">
+                </div>
+
+                <div class="form-group">
+                    <label id="team2H2HLabel" for="team2_head_to_head">Head-to-Head</label>
+                    <input type="number" id="team2_head_to_head" name="team2_head_to_head" step="0.01" min="0" max="1" value="0.5">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                Predict Winner
+            </button>
+        </form>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div id="resultCard" class="result-card" style="display: none;">
+            <h3 class="result-title">Prediction Result</h3>
+            <div class="result-info">
+                <div>
+                    <p class="prediction-text" id="predictionText"></p>
+                    <p class="confidence-text" id="confidenceText"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('predictionForm');
+        const errorDiv = document.getElementById('errorMessage');
+        const resultCard = document.getElementById('resultCard');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Update labels when teams are selected
+        document.getElementById('team1').addEventListener('change', (e) => {
+            const team1Name = e.target.value || 'Team 1';
+            document.getElementById('team1Label').textContent = team1Name + ' Win Percentage';
+            document.getElementById('team1FormLabel').textContent = team1Name + ' Recent Form';
+            document.getElementById('team1H2HLabel').textContent = team1Name + ' Head-to-Head';
+        });
+
+        document.getElementById('team2').addEventListener('change', (e) => {
+            const team2Name = e.target.value || 'Team 2';
+            document.getElementById('team2Label').textContent = team2Name + ' Win Percentage';
+            document.getElementById('team2FormLabel').textContent = team2Name + ' Recent Form';
+            document.getElementById('team2H2HLabel').textContent = team2Name + ' Head-to-Head';
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Get form data
+            const formData = {
+                team1: document.getElementById('team1').value,
+                team2: document.getElementById('team2').value,
+                venue: document.getElementById('venue').value,
+                city: document.getElementById('city').value,
+                team1_win_percentage: parseFloat(document.getElementById('team1_win_percentage').value),
+                team2_win_percentage: parseFloat(document.getElementById('team2_win_percentage').value),
+                team1_recent_form: parseFloat(document.getElementById('team1_recent_form').value),
+                team2_recent_form: parseFloat(document.getElementById('team2_recent_form').value),
+                team1_head_to_head: parseFloat(document.getElementById('team1_head_to_head').value),
+                team2_head_to_head: parseFloat(document.getElementById('team2_head_to_head').value)
+            };
+
+            // Validate
+            if (formData.team1 === formData.team2) {
+                showError('Please select different teams');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Predicting...';
+            hideError();
+            hideResult();
+
+            try {
+                // Use relative URL for Docker compatibility, fallback to localhost for local dev
+                const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? 'http://localhost:8080/predict'
+                    : '/api/predict';  // In Docker, use proxy or same origin
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Prediction failed');
+                }
+
+                // Show result
+                const winningTeam = data.prediction === 1 ? formData.team1 : formData.team2;
+                document.getElementById('predictionText').textContent = `Predicted Winner: ${winningTeam}`;
+                document.getElementById('confidenceText').textContent = `Confidence: ${(data.probability * 100).toFixed(2)}% (${data.confidence} confidence)`;
+                showResult();
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Predict Winner';
+            }
+        });
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            errorDiv.style.display = 'none';
+        }
+
+        function showResult() {
+            resultCard.style.display = 'block';
+        }
+
+        function hideResult() {
+            resultCard.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
