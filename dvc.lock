@@ -1,0 +1,108 @@
+schema: '2.0'
+stages:
+  data_processing:
+    cmd: python scripts/ingest_and_process.py
+    deps:
+    - path: data/raw/deliveries.csv
+      hash: md5
+      md5: 4a13d11362feaf6b30796c7c26791d8e
+      size: 27019953
+    - path: data/raw/matches.csv
+      hash: md5
+      md5: 1ba35bd51918f47cc54ca6e60fe4e0c8
+      size: 225266
+    - path: scripts/ingest_and_process.py
+      hash: md5
+      md5: 7262af4c4038109ef83e8407de2a1f6e
+      size: 7919
+    outs:
+    - path: data/processed/processed_ipl_data.parquet
+      hash: md5
+      md5: ec354b30df431cf10df870c46c8de0a3
+      size: 23375
+    - path: metrics/data_quality.json
+      hash: md5
+      md5: 0c08cadb083317f84626432e55227d15
+      size: 1175
+    - path: metrics/processing_stats.json
+      hash: md5
+      md5: a9d673bbdefb229da3843a1b7acbd15e
+      size: 507
+  feature_engineering:
+    cmd: python scripts/feature_engineering.py
+    deps:
+    - path: data/processed/processed_ipl_data.parquet
+      hash: md5
+      md5: ec354b30df431cf10df870c46c8de0a3
+      size: 23375
+    - path: scripts/feature_engineering.py
+      hash: md5
+      md5: 4a55f4cf7bb4f282ef59d63c107bb4a3
+      size: 6030
+    outs:
+    - path: data/features/
+      hash: md5
+      md5: 37d5bebf1cb1295bffe15a690f1279e9.dir
+      size: 58412
+      nfiles: 2
+    - path: metrics/feature_importance.json
+      hash: md5
+      md5: 76a43d10fccb5c4ed6be2b8f828bc238
+      size: 1034
+  model_training:
+    cmd: python scripts/train_model.py
+    deps:
+    - path: configs/model_config.yaml
+      hash: md5
+      md5: 0b526834f92ebf5649b3848d5809b9e5
+      size: 743
+    - path: data/features/
+      hash: md5
+      md5: 37d5bebf1cb1295bffe15a690f1279e9.dir
+      size: 58412
+      nfiles: 2
+    - path: scripts/train_model.py
+      hash: md5
+      md5: a3c75c20c31a23abfa76ba92da3dfe25
+      size: 6432
+    outs:
+    - path: metrics/model_performance.json
+      hash: md5
+      md5: 52f92bc0d8a2f036a6ab6fc011317a7a
+      size: 1019
+    - path: mlruns/
+      hash: md5
+      md5: c3de1a085223b15297b3ccdd1ebe484a.dir
+      size: 242258
+      nfiles: 6
+    - path: models/
+      hash: md5
+      md5: a0864fa347408680b18c623a9a4e9dc2.dir
+      size: 242327
+      nfiles: 3
+  model_evaluation:
+    cmd: python scripts/evaluate_model.py
+    deps:
+    - path: data/features/
+      hash: md5
+      md5: 37d5bebf1cb1295bffe15a690f1279e9.dir
+      size: 58412
+      nfiles: 2
+    - path: models/
+      hash: md5
+      md5: a0864fa347408680b18c623a9a4e9dc2.dir
+      size: 242327
+      nfiles: 3
+    - path: scripts/evaluate_model.py
+      hash: md5
+      md5: cb681e911210e735402925cf13bae1ac
+      size: 9870
+    outs:
+    - path: metrics/evaluation_results.json
+      hash: md5
+      md5: d95ae6937bcd6cf97bb0330f10e82f2a
+      size: 1348
+    - path: reports/model_evaluation.html
+      hash: md5
+      md5: 57122240a143a5f85fd2e91229244002
+      size: 3103

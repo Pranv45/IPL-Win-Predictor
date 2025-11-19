@@ -1,0 +1,54 @@
+stages:
+  data_processing:
+    cmd: python scripts/ingest_and_process.py
+    deps:
+      - data/raw/matches.csv
+      - data/raw/deliveries.csv
+      - scripts/ingest_and_process.py
+    outs:
+      - data/processed/processed_ipl_data.parquet:
+          persist: true
+    metrics:
+      - metrics/data_quality.json:
+          persist: true
+      - metrics/processing_stats.json:
+          persist: true
+
+  feature_engineering:
+    cmd: python scripts/feature_engineering.py
+    deps:
+      - data/processed/processed_ipl_data.parquet
+      - scripts/feature_engineering.py
+    outs:
+      - data/features/:
+          persist: true
+    metrics:
+      - metrics/feature_importance.json:
+          persist: true
+
+  model_training:
+    cmd: python scripts/train_model.py
+    deps:
+      - data/features/
+      - scripts/train_model.py
+      - configs/model_config.yaml
+    outs:
+      - models/:
+          persist: true
+    metrics:
+      - metrics/model_performance.json:
+          persist: true
+      - mlruns/:
+          persist: true
+
+  model_evaluation:
+    cmd: python scripts/evaluate_model.py
+    deps:
+      - models/
+      - data/features/
+      - scripts/evaluate_model.py
+    metrics:
+      - metrics/evaluation_results.json:
+          persist: true
+      - reports/model_evaluation.html:
+          persist: true
