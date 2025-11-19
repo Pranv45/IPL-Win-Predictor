@@ -1,0 +1,24 @@
+groups:
+  - name: model-performance-alerts
+    rules:
+      # Alert if 90th percentile prediction latency is greater than 1 second
+      - alert: HighPredictionLatency
+        expr: histogram_quantile(0.9, rate(ipl_prediction_latency_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High prediction latency detected"
+          description: "90th percentile prediction latency has been above 1s for the last 5 minutes."
+
+      # Alert if no predictions have been made in the last 15 minutes
+      - alert: NoRecentPredictions
+        expr: rate(ipl_predictions_total[15m]) == 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "No predictions in the last 15 minutes"
+          description: "The model-api has not served any predictions in the last 15 minutes. This may indicate low traffic or an upstream issue."
+
+
