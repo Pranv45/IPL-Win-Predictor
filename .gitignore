@@ -1,9 +1,46 @@
-# Ignore Python virtual environments and cache
-__pycache__/
-*.pyc
+# Python virtual environments
+venv/
+.env/
 .venv/
 
-# Ignore processed data and other derivatives
-/data/processed/
-/app/models/
-*.pkl
+# MLflow experiment runs (do not track)
+mlruns/
+mlruns.db
+
+# Spark temp files
+*.crc
+
+# Python Bytecode Cache
+__pycache__/
+*.pyc
+
+# DVC cache directory (local)
+.dvc/cache/
+
+# Airflow logs
+airflow/logs/
+logs/
+
+# Docker and build artifacts
+*.pid
+
+# Monitoring data (Prometheus / Grafana storage)
+monitoring/prometheus-data/
+monitoring/alertmanager-data/
+
+# Generated data (DVC will track output separately)
+data/processed/
+data/features/
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Frontend build output (if any)
+frontend/dist/
+frontend/node_modules/
+
+# Ignore all untracked by default (optional)
+# ! Keep only wanted project files
