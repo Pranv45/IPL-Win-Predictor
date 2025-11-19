@@ -1,0 +1,220 @@
+services:
+  # Postgres Database for Airflow and MLflow
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+
+  # Redis for Airflow
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # Airflow Webserver
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY='C5RNV0UMLlhQIDYW06njdwA2AJv_-c78CZ5hmLgKv_w='
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./metrics:/opt/airflow/metrics
+      - ./scripts:/opt/airflow/scripts
+      - ./configs:/opt/airflow/configs
+      - ./dvc.yaml:/opt/airflow/dvc.yaml
+      - ./.dvc:/opt/airflow/.dvc
+    # Dependencies are pre-installed in custom image
+    # Entrypoint script handles user creation and webserver startup
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Airflow Scheduler
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY='C5RNV0UMLlhQIDYW06njdwA2AJv_-c78CZ5hmLgKv_w='
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./metrics:/opt/airflow/metrics
+      - ./scripts:/opt/airflow/scripts
+      - ./configs:/opt/airflow/configs
+      - ./dvc.yaml:/opt/airflow/dvc.yaml
+      - ./.dvc:/opt/airflow/.dvc
+    # Dependencies are pre-installed in custom image, no need for root user or apt-get
+    command: airflow scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MLflow Tracking Server
+  mlflow:
+    image: python:3.9-slim
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y --no-install-recommends postgresql-client curl &&
+      pip install mlflow psycopg2-binary &&
+      echo 'Waiting for database to be ready...' &&
+      until PGPASSWORD=airflow psql -h postgres -U airflow -d postgres -c 'SELECT 1' > /dev/null 2>&1; do
+        echo 'Database not ready, waiting...' &&
+        sleep 2
+      done &&
+      echo 'Database is ready!' &&
+      echo 'Creating MLflow database...' &&
+      PGPASSWORD=airflow psql -h postgres -U airflow -d postgres -c 'CREATE DATABASE mlflow;' 2>/dev/null || echo 'MLflow database may already exist' &&
+      echo 'Starting MLflow server...' &&
+      mlflow server --backend-store-uri postgresql://airflow:airflow@postgres:5432/mlflow --default-artifact-root file:///mlruns --host 0.0.0.0 --port 5000
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://airflow:airflow@postgres:5432/mlflow
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=file:///mlruns
+      - PGPASSWORD=airflow
+    volumes:
+      - ./mlruns:/mlruns
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - model-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    depends_on:
+      - prometheus
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Model API Service
+  model-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8080:8080"
+      - "8000:8000"  # Prometheus metrics
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./configs:/app/configs  # Mount configs for runtime updates
+    environment:
+      - MODEL_PATH=/app/models
+      - DATA_PATH=/app/data
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # HTML Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3002:80"  # Changed from 3000 to avoid conflict with local Python process
+    depends_on:
+      - model-api
+
+volumes:
+  postgres-db-volume:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    name: ipl-mlops-network
