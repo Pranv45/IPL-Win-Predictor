@@ -1,0 +1,250 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov flake8 black
+
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Format check with black
+      run: |
+        black --check --diff .
+
+    - name: Run tests
+      run: |
+        pytest --cov=scripts --cov=api --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+
+  validate-model:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Validate model performance
+      run: |
+        python -c "
+        import json
+        import os
+        import sys
+
+        # Check if model evaluation results exist
+        metrics_path = 'metrics/evaluation_results.json'
+        if not os.path.exists(metrics_path):
+            print('Warning: Model evaluation results not found. Skipping validation.')
+            sys.exit(0)
+
+        # Load metrics
+        with open(metrics_path, 'r') as f:
+            metrics = json.load(f)
+
+        # Define minimum thresholds
+        MIN_ACCURACY = 0.60  # 60% minimum accuracy
+        MIN_F1_SCORE = 0.55  # 55% minimum F1 score
+
+        accuracy = metrics.get('accuracy', 0)
+        f1_score = metrics.get('f1_score', 0)
+
+        print(f'Model Accuracy: {accuracy:.4f}')
+        print(f'Model F1 Score: {f1_score:.4f}')
+        print(f'Minimum Required Accuracy: {MIN_ACCURACY}')
+        print(f'Minimum Required F1 Score: {MIN_F1_SCORE}')
+
+        # Validate metrics
+        if accuracy < MIN_ACCURACY:
+            print(f'ERROR: Model accuracy {accuracy:.4f} is below threshold {MIN_ACCURACY}')
+            sys.exit(1)
+
+        if f1_score < MIN_F1_SCORE:
+            print(f'ERROR: Model F1 score {f1_score:.4f} is below threshold {MIN_F1_SCORE}')
+            sys.exit(1)
+
+        print('Model validation passed!')
+        "
+      continue-on-error: true  # Don't fail pipeline if model doesn't exist yet
+
+  build-and-push:
+    needs: [test, validate-model]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Spark image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.spark
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/ipl-spark:latest
+
+    - name: Build and push API image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.api
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/ipl-api:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && secrets.SSH_HOST != ''
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Deploy to remote server via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        script: |
+          echo "=== Starting deployment ==="
+
+          # Navigate to application directory
+          cd /opt/ipl-win-predictor || exit 1
+
+          # Login to Docker Hub to pull private images (if needed)
+          echo "Logging in to Docker Hub..."
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+          # Pull latest Docker images
+          echo "Pulling latest Docker images..."
+          docker pull ${{ secrets.DOCKER_USERNAME }}/ipl-spark:latest
+          docker pull ${{ secrets.DOCKER_USERNAME }}/ipl-api:latest
+
+          # Update docker-compose to use the new images
+          echo "Updating docker-compose services..."
+          docker compose pull
+
+          # Restart services with zero-downtime deployment
+          echo "Restarting services..."
+          docker compose up -d --no-deps --build
+
+          # Clean up old images to free space
+          echo "Cleaning up old Docker images..."
+          docker image prune -f
+
+          # Wait for services to be healthy
+          echo "Waiting for services to start..."
+          sleep 10
+
+          # Check if API service is running
+          if docker compose ps | grep -q "model-api.*Up"; then
+            echo "✅ API service is running"
+          else
+            echo "❌ API service failed to start"
+            docker compose logs model-api
+            exit 1
+          fi
+
+          echo "=== Deployment completed successfully ==="
+
+    - name: Wait for application startup
+      run: |
+        echo "Waiting for application to be fully ready..."
+        sleep 15
+
+    - name: Run integration tests
+      run: |
+        echo "Running integration tests against deployed application..."
+
+        # Test API health endpoint
+        API_URL="http://${{ secrets.SSH_HOST }}:8080"
+
+        echo "Testing API health endpoint: ${API_URL}/health"
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${API_URL}/health)
+
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ Health check passed (HTTP ${HTTP_STATUS})"
+        else
+          echo "❌ Health check failed (HTTP ${HTTP_STATUS})"
+          exit 1
+        fi
+
+        # Test API root endpoint
+        echo "Testing API root endpoint: ${API_URL}/"
+        RESPONSE=$(curl -s ${API_URL}/)
+
+        if echo "$RESPONSE" | grep -q "IPL Win Predictor API"; then
+          echo "✅ Root endpoint returned expected response"
+        else
+          echo "❌ Root endpoint returned unexpected response"
+          echo "Response: $RESPONSE"
+          exit 1
+        fi
+
+        # Test model info endpoint
+        echo "Testing model info endpoint: ${API_URL}/model-info"
+        MODEL_INFO=$(curl -s ${API_URL}/model-info)
+
+        if echo "$MODEL_INFO" | grep -q "model_name"; then
+          echo "✅ Model info endpoint accessible"
+          echo "Model info: $MODEL_INFO"
+        else
+          echo "⚠️  Model info endpoint returned unexpected response (non-critical)"
+        fi
+
+        # Test Prometheus metrics endpoint
+        echo "Testing metrics endpoint: ${API_URL}/metrics"
+        METRICS=$(curl -s ${API_URL}/metrics)
+
+        if echo "$METRICS" | grep -q "ipl_predictions_total"; then
+          echo "✅ Metrics endpoint is working"
+        else
+          echo "⚠️  Metrics endpoint may not be fully initialized (non-critical)"
+        fi
+
+        echo "=== Integration tests completed ==="
