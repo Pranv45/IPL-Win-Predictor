@@ -1,0 +1,22 @@
+{
+  "processed_matches": 1095,
+  "features_created": 9,
+  "target_distribution": {
+    "1": 555,
+    "0": 540
+  },
+  "feature_statistics": {
+    "team1_win_percentage": {
+      "mean": 0.49732908061429587,
+      "std": 0.06077542275656981,
+      "min": 0.2608695652173913,
+      "max": 0.6222222222222222
+    },
+    "team2_win_percentage": {
+      "mean": 0.4981047093400516,
+      "std": 0.06016168930314603,
+      "min": 0.2608695652173913,
+      "max": 0.6222222222222222
+    }
+  }
+}

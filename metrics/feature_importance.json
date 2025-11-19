@@ -1,0 +1,49 @@
+{
+  "features_created": [
+    "Team1",
+    "Season",
+    "Venue",
+    "Team2",
+    "id",
+    "City",
+    "team1_win_percentage",
+    "team2_win_percentage",
+    "winner",
+    "date",
+    "team1_recent_form",
+    "team2_recent_form",
+    "h2h_matches",
+    "h2h_wins_team1",
+    "h2h_win_rate_team1",
+    "h2h_win_rate_team2",
+    "venue_matches_team1",
+    "venue_wins_team1",
+    "venue_win_rate_team1",
+    "season_matches_team1",
+    "season_wins_team1",
+    "season_win_rate_team1",
+    "Team1_encoded",
+    "Team2_encoded",
+    "City_encoded",
+    "Venue_encoded",
+    "win_percentage_diff",
+    "recent_form_diff",
+    "h2h_advantage"
+  ],
+  "numerical_features": [
+    "team1_win_percentage",
+    "team2_win_percentage",
+    "team1_recent_form",
+    "team2_recent_form",
+    "team1_head_to_head",
+    "team2_head_to_head"
+  ],
+  "categorical_features": [
+    "Team1",
+    "Team2",
+    "City",
+    "Venue"
+  ],
+  "total_features": 29,
+  "timestamp": "2025-11-19T00:36:48.209642"
+}
