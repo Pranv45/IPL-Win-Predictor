@@ -1,0 +1,41 @@
+model:
+  name: "ipl_win_predictor"
+  type: "xgboost"
+
+hyperparameters:
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  random_state: 42
+
+training:
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+
+features:
+  target_column: "winner"
+  categorical_features:
+    - "Team1"
+    - "Team2"
+    - "City"
+    - "Venue"
+  numerical_features:
+    - "team1_win_percentage"
+    - "team2_win_percentage"
+    - "team1_recent_form"
+    - "team2_recent_form"
+    - "team1_head_to_head"
+    - "team2_head_to_head"
+
+mlflow:
+  experiment_name: "ipl_win_prediction"
+  tracking_uri: "file:./mlruns"  # Local file storage (use "http://mlflow:5000" in Docker)
+  registered_model_name: "IPLWinPredictor"  # Model Registry name
+  model_stage: "Production"  # Stage to load from: None, Staging, Production, Archived
+
+monitoring:
+  prometheus_port: 8000
+  metrics_interval: 60
