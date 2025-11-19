@@ -35,6 +35,10 @@ data/features/
 # Metrics (DVC will track these)
 metrics/*.json
 
+# Models (DVC will track these)
+models/*.pkl
+models/*.json
+
 # Editor / OS files
 .vscode/
 .idea/
