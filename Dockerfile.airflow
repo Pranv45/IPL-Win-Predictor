@@ -1,0 +1,35 @@
+# Custom Airflow image with pre-installed dependencies
+FROM apache/airflow:2.7.0
+
+# Switch to root to install system dependencies
+USER root
+
+# Install Java (required for Spark)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    default-jre-headless \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+
+# Switch back to airflow user
+USER airflow
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    apache-airflow-providers-docker \
+    pyspark==3.3.1 \
+    pyarrow>=12.0.0 \
+    dvc>=3.0.0
+
+# Copy entrypoint script and set permissions
+COPY --chmod=755 airflow-entrypoint.sh /entrypoint.sh
+
+# Set working directory
+WORKDIR /opt/airflow
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
