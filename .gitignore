@@ -32,6 +32,9 @@ monitoring/alertmanager-data/
 data/processed/
 data/features/
 
+# Metrics (DVC will track these)
+metrics/*.json
+
 # Editor / OS files
 .vscode/
 .idea/
