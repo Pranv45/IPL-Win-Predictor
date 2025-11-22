@@ -22,7 +22,7 @@ An end-to-end MLOps system for predicting IPL match winners, featuring automated
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/IPL-Win-Predictor.git
+   git clone https://github.com/Pranv45/IPL-Win-Predictor.git
    cd IPL-Win-Predictor
    ```
 
@@ -92,5 +92,4 @@ To retrain with new hyperparameters:
 3. Check MLflow for the new model version
 
 ---
-**Note**: Before pushing to Git, update `YOUR_USERNAME` in the clone command above and ensure `dvc.yaml` and `docker-compose.yml` are committed.
 
