@@ -1,0 +1,18 @@
+{
+  "feature_columns": [
+    "team1_win_percentage",
+    "team2_win_percentage",
+    "team1_recent_form",
+    "team2_recent_form",
+    "Team1_encoded",
+    "Team2_encoded",
+    "City_encoded",
+    "Venue_encoded",
+    "win_percentage_diff",
+    "recent_form_diff",
+    "h2h_advantage"
+  ],
+  "model_name": "ipl_win_predictor",
+  "model_type": "xgboost",
+  "training_date": "2025-11-22T00:58:33.863345"
+}

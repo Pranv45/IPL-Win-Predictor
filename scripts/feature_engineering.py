@@ -181,6 +181,13 @@ def engineer_features(spark, df):
 
     # 7. Create interaction features
     logging.info("Creating interaction features...")
+
+    # Validate required columns exist before creating interactions
+    required_cols = ['team1_win_percentage', 'team2_win_percentage', 'team1_recent_form', 'team2_recent_form']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns for interaction features: {missing_cols}")
+
     df = df.withColumn(
         'win_percentage_diff',
         F.col('team1_win_percentage') - F.col('team2_win_percentage')

@@ -38,8 +38,6 @@ stages:
     metrics:
       - metrics/model_performance.json:
           persist: true
-      - mlruns/:
-          persist: true
 
   model_evaluation:
     cmd: python scripts/evaluate_model.py

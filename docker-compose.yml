@@ -27,17 +27,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    user: "0:0"
     depends_on:
       - postgres
       - redis
+      - mlflow
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__FERNET_KEY='C5RNV0UMLlhQIDYW06njdwA2AJv_-c78CZ5hmLgKv_w='
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
       - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+      - AIRFLOW_ROLE=webserver
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -48,8 +52,12 @@ services:
       - ./configs:/opt/airflow/configs
       - ./dvc.yaml:/opt/airflow/dvc.yaml
       - ./.dvc:/opt/airflow/.dvc
+      - ./.git:/opt/airflow/.git
+      - ./mlruns:/mlruns
     # Dependencies are pre-installed in custom image
     # Entrypoint script handles user creation and webserver startup
+    entrypoint: /entrypoint.sh
+    command: []
     ports:
       - "8081:8080"
     healthcheck:
@@ -63,16 +71,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
+    user: "0:0"
     depends_on:
       - postgres
       - redis
+      - mlflow
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__FERNET_KEY='C5RNV0UMLlhQIDYW06njdwA2AJv_-c78CZ5hmLgKv_w='
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+      - AIRFLOW_ROLE=scheduler
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -83,13 +95,17 @@ services:
       - ./configs:/opt/airflow/configs
       - ./dvc.yaml:/opt/airflow/dvc.yaml
       - ./.dvc:/opt/airflow/.dvc
+      - ./.git:/opt/airflow/.git
+      - ./mlruns:/mlruns
     # Dependencies are pre-installed in custom image, no need for root user or apt-get
-    command: airflow scheduler
+    entrypoint: /entrypoint.sh
+    command: []
     healthcheck:
-      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --allow-multiple --limit 1 || exit 0"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
   # MLflow Tracking Server
   mlflow:

@@ -25,13 +25,26 @@ def load_config():
 def load_features():
     """Load engineered features."""
     features_path = "data/features/engineered_features.parquet"
+
+    if not os.path.exists(features_path):
+        raise FileNotFoundError(f"Features file not found: {features_path}")
+
     df = pd.read_parquet(features_path)
+
+    if df.empty:
+        raise ValueError("Features dataframe is empty")
+
     logging.info(f"Loaded features with shape: {df.shape}")
     return df
 
 def prepare_data(df, config):
     """Prepare data for training."""
     logging.info("Preparing data for training...")
+
+    # Validate target column exists
+    target_column = config['features']['target_column']
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found in dataframe. Available columns: {df.columns.tolist()}")
 
     # Select features for training
     feature_columns = []
@@ -53,11 +66,18 @@ def prepare_data(df, config):
         if feature in df.columns:
             feature_columns.append(feature)
 
+    if len(feature_columns) == 0:
+        raise ValueError("No valid features found for training")
+
     logging.info(f"Selected {len(feature_columns)} features for training")
 
     # Prepare X and y
     X = df[feature_columns].fillna(0)
-    y = df[config['features']['target_column']]
+    y = df[target_column]
+
+    # Validate minimum samples
+    if len(X) < 10:
+        raise ValueError(f"Insufficient training samples: {len(X)}. Need at least 10 samples.")
 
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(

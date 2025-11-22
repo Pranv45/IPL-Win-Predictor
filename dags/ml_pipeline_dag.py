@@ -29,27 +29,52 @@ def check_data_quality():
     import pandas as pd
     import logging
 
-    # Check raw data
-    matches_df = pd.read_csv('/opt/airflow/data/raw/matches.csv')
-    deliveries_df = pd.read_csv('/opt/airflow/data/raw/deliveries.csv')
+    def to_py(obj):
+        """Convert numpy/pandas objects to native Python types."""
+        return obj.item() if hasattr(obj, "item") else obj
 
-    # Basic quality checks
-    quality_metrics = {
-        'matches_count': len(matches_df),
-        'deliveries_count': len(deliveries_df),
-        'matches_missing_values': matches_df.isnull().sum().sum(),
-        'deliveries_missing_values': deliveries_df.isnull().sum().sum(),
-        'timestamp': datetime.now().isoformat()
-    }
+    try:
+        # Check raw data files exist
+        matches_path = '/opt/airflow/data/raw/matches.csv'
+        deliveries_path = '/opt/airflow/data/raw/deliveries.csv'
 
-    # Save quality metrics
-    import json
-    os.makedirs('/opt/airflow/metrics', exist_ok=True)
-    with open('/opt/airflow/metrics/data_quality.json', 'w') as f:
-        json.dump(quality_metrics, f, indent=2)
+        if not os.path.exists(matches_path):
+            raise FileNotFoundError(f"Matches file not found: {matches_path}")
+        if not os.path.exists(deliveries_path):
+            raise FileNotFoundError(f"Deliveries file not found: {deliveries_path}")
 
-    logging.info(f"Data quality check completed: {quality_metrics}")
-    return quality_metrics
+        # Check raw data
+        matches_df = pd.read_csv(matches_path)
+        deliveries_df = pd.read_csv(deliveries_path)
+
+        # Validate minimum data requirements
+        if len(matches_df) == 0:
+            raise ValueError("Matches dataset is empty")
+        if len(deliveries_df) == 0:
+            raise ValueError("Deliveries dataset is empty")
+
+        # Basic quality checks
+        quality_metrics = {
+            'matches_count': len(matches_df),
+            'deliveries_count': len(deliveries_df),
+            'matches_missing_values': matches_df.isnull().sum().sum(),
+            'deliveries_missing_values': deliveries_df.isnull().sum().sum(),
+            'timestamp': datetime.now().isoformat()
+        }
+        quality_metrics = {k: to_py(v) for k, v in quality_metrics.items()}
+
+        # Save quality metrics
+        import json
+        os.makedirs('/opt/airflow/metrics', exist_ok=True)
+        with open('/opt/airflow/metrics/data_quality.json', 'w') as f:
+            json.dump(quality_metrics, f, indent=2)
+
+        logging.info(f"✅ Data quality check completed: {quality_metrics}")
+        return quality_metrics
+
+    except Exception as e:
+        logging.error(f"❌ Data quality check failed: {e}")
+        raise
 
 def run_dvc_pipeline():
     """Run DVC pipeline stages."""
@@ -83,19 +108,40 @@ def deploy_model():
     import shutil
     import logging
 
-    # Copy model to deployment directory
-    model_source = '/opt/airflow/models/ipl_win_predictor.pkl'
-    model_dest = '/opt/airflow/models/deployed/ipl_win_predictor.pkl'
+    try:
+        # Define paths
+        model_source = '/opt/airflow/models/ipl_win_predictor.pkl'
+        scaler_source = '/opt/airflow/models/scaler.pkl'
+        model_info_source = '/opt/airflow/models/model_info.json'
 
-    os.makedirs('/opt/airflow/models/deployed', exist_ok=True)
-    shutil.copy2(model_source, model_dest)
+        deployment_dir = '/opt/airflow/models/deployed'
 
-    # Copy scaler and model info
-    shutil.copy2('/opt/airflow/models/scaler.pkl', '/opt/airflow/models/deployed/scaler.pkl')
-    shutil.copy2('/opt/airflow/models/model_info.json', '/opt/airflow/models/deployed/model_info.json')
+        # Validate source files exist
+        if not os.path.exists(model_source):
+            raise FileNotFoundError(f"Model file not found: {model_source}")
+        if not os.path.exists(scaler_source):
+            raise FileNotFoundError(f"Scaler file not found: {scaler_source}")
+        if not os.path.exists(model_info_source):
+            raise FileNotFoundError(f"Model info file not found: {model_info_source}")
 
-    logging.info("Model deployed successfully")
-    return "Model deployed"
+        # Create deployment directory
+        os.makedirs(deployment_dir, exist_ok=True)
+
+        # Copy model artifacts
+        shutil.copy2(model_source, f'{deployment_dir}/ipl_win_predictor.pkl')
+        shutil.copy2(scaler_source, f'{deployment_dir}/scaler.pkl')
+        shutil.copy2(model_info_source, f'{deployment_dir}/model_info.json')
+
+        # Verify deployment
+        if not os.path.exists(f'{deployment_dir}/ipl_win_predictor.pkl'):
+            raise RuntimeError("Model deployment verification failed")
+
+        logging.info("✅ Model deployed successfully to {deployment_dir}")
+        return "Model deployed"
+
+    except Exception as e:
+        logging.error(f"❌ Model deployment failed: {e}")
+        raise
 
 def send_notification():
     """Send notification about pipeline completion."""

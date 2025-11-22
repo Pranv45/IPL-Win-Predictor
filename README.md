@@ -1,56 +1,96 @@
-# IPL Win Predictor MLOps Project
+# IPL Win Predictor MLOps Pipeline
 
-This project implements an end-to-end MLOps pipeline to train, deploy, and monitor an IPL win prediction model, following best practices for software engineering and production-grade machine learning.
+An end-to-end MLOps system for predicting IPL match winners, featuring automated training, deployment, and monitoring.
 
-## 1. Data Ingestion and Processing
+## 🏗 Architecture
 
-This initial step uses Apache Spark to ingest the raw IPL data, clean it, perform feature engineering, and save the result as a Parquet file. The entire Spark environment is containerized using Docker to ensure consistency and reproducibility.
+- **Orchestration**: Apache Airflow
+- **Data Versioning**: DVC (Data Version Control)
+- **Experiment Tracking**: MLflow
+- **Model Serving**: FastAPI
+- **Monitoring**: Prometheus & Grafana
+- **Containerization**: Docker & Docker Compose
+- **CI/CD**: GitHub Actions
+
+## 🚀 Quick Start
 
 ### Prerequisites
+- Docker & Docker Compose
+- Git
 
-- Docker Desktop must be installed and running on your local machine.
+### Installation
 
-### How to Run
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/IPL-Win-Predictor.git
+   cd IPL-Win-Predictor
+   ```
 
-1.  **Build the Spark Environment Docker Image:**
-    This command builds a Docker image tagged `spark-env:latest` using the instructions specified in `Dockerfile.spark`. This image contains all necessary dependencies, including Python, Java, and Apache Spark.
+2. Start all services:
+   ```bash
+   docker compose up -d --build
+   ```
 
-    ```bash
-    docker build -t spark-env:latest -f Dockerfile.spark .
-    ```
+3. Access the services:
+   | Service | URL | Credentials |
+   |---------|-----|-------------|
+   | **Airflow** | http://localhost:8081 | `admin` / `admin` |
+   | **MLflow** | http://localhost:5000 | - |
+   | **Prediction API** | http://localhost:8080 | - |
+   | **Grafana** | http://localhost:3001 | `admin` / `admin` |
+   | **Prometheus** | http://localhost:9090 | - |
+   | **Frontend** | http://localhost:3002 | - |
 
-2.  **Run the Spark Processing Script:**
-    This command executes the `ingest_and_process.py` script inside a new container.
+## 🔄 Pipeline Workflow
 
-    **Note for Windows Users:** If you are using Command Prompt (cmd.exe), replace `$(pwd)` with `%cd%`. If you are using PowerShell, replace `$(pwd)` with `${pwd}`.
+The ML pipeline is defined in Airflow (`dags/ml_pipeline_dag.py`) and orchestrated via DVC:
 
-    ```bash
-    docker run --rm -v "$(pwd):/app" spark-env:latest spark-submit scripts/ingest_and_process.py
-    ```
-    **Command Breakdown:**
-    - `docker run`: The command to start a new container.
-    - `--rm`: Automatically removes the container when the script finishes. This keeps things clean.
-    - `-v "$(pwd):/app"`: Mounts your current project directory (`$(pwd)`) into the `/app` directory inside the container. This is crucial as it allows the script inside the container to access your `data/` and `scripts/` folders.
-    - `spark-env:latest`: The name of the image we want to use for the container.
-    - `spark-submit scripts/ingest_and_process.py`: This is the command that gets executed inside the container. It tells Spark to run our Python script.
+1. **Data Processing**: Ingests and cleans raw IPL data using Spark.
+2. **Feature Engineering**: Creates features like win percentages and recent form.
+3. **Model Training**: Trains an XGBoost model and logs metrics/artifacts to MLflow.
+4. **Evaluation**: Validates model performance against thresholds.
+5. **Deployment**: Registers the model to MLflow Registry and deploys it to the API.
 
-### Expected Outcome
+To trigger the pipeline manually:
+1. Go to Airflow UI (http://localhost:8081)
+2. Enable `ipl_ml_pipeline` DAG
+3. Click the "Trigger DAG" (Play) button
 
-After the script runs successfully, a new directory will be created at `data/processed/processed_ipl_data.parquet`, containing the final, feature-engineered dataset ready for model training.
+## 🛠 Configuration
 
-<details>
-<summary>Click to see a sample of the successful log output</summary>
+- **Hyperparameters**: Edit `configs/model_config.yaml` to change model parameters. DVC will automatically detect changes and retrain.
+- **Monitoring**: Alerts and dashboards are configured in `monitoring/`.
 
+## 📦 CI/CD
+
+The GitHub Actions pipeline (`.github/workflows/ci-cd.yml`) performs:
+1. **Test**: Linting and unit tests.
+2. **Validate**: Checks model performance metrics.
+3. **Build**: Builds and pushes Docker images.
+4. **Deploy**: Deploys to remote server via SSH (if secrets are configured).
+
+## 📝 Usage
+
+### API Prediction
+```bash
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "team1": "Mumbai Indians",
+    "team2": "Chennai Super Kings",
+    "venue": "Wankhede Stadium",
+    "city": "Mumbai",
+    "toss_winner": "Mumbai Indians",
+    "toss_decision": "field"
+  }'
 ```
-- INFO - Spark session created successfully.
-- INFO - Loading raw matches data from /app/data/raw/matches.csv...
-- INFO - Loading raw ball-by-ball data from /app/data/raw/deliveries.csv...
-- INFO - Starting data cleaning and preprocessing...
-- INFO - Starting feature engineering...
-- INFO - Data processing complete and saved successfully...
-INFO ShutdownHookManager: Shutdown hook called
-```
-</details>
+
+### Retraining
+To retrain with new hyperparameters:
+1. Modify `configs/model_config.yaml`
+2. Trigger the DAG in Airflow
+3. Check MLflow for the new model version
 
 ---
+**Note**: Before pushing to Git, update `YOUR_USERNAME` in the clone command above and ensure `dvc.yaml` and `docker-compose.yml` are committed.
 

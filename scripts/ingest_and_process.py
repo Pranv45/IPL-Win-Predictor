@@ -29,6 +29,12 @@ def get_spark_session():
 
 def load_data(spark, matches_path: str, deliveries_path: str):
     """Load raw IPL data using Spark."""
+    # Validate input files exist
+    if not os.path.exists(matches_path):
+        raise FileNotFoundError(f"Matches file not found: {matches_path}")
+    if not os.path.exists(deliveries_path):
+        raise FileNotFoundError(f"Deliveries file not found: {deliveries_path}")
+
     logging.info(f"Loading raw matches data from {matches_path} using Spark...")
     matches_df = (
         spark.read
@@ -47,6 +53,12 @@ def load_data(spark, matches_path: str, deliveries_path: str):
 
     matches_count = matches_df.count()
     deliveries_count = deliveries_df.count()
+
+    # Validate loaded data
+    if matches_count == 0:
+        raise ValueError("Matches dataset is empty after loading")
+    if deliveries_count == 0:
+        raise ValueError("Deliveries dataset is empty after loading")
 
     logging.info(f"Loaded with Spark - Matches: {matches_count} rows, Deliveries: {deliveries_count} rows")
 
@@ -127,6 +139,12 @@ def calculate_win_percentages(matches_df):
 def engineer_features(matches_df, deliveries_df):
     """Engineer features for the dataset using Spark."""
     logging.info("Starting feature engineering with Spark...")
+
+    # Validate required columns exist
+    required_matches_cols = ['team1', 'team2', 'winner', 'id', 'date', 'city', 'venue']
+    missing_cols = [col for col in required_matches_cols if col not in matches_df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in matches data: {missing_cols}")
 
     # Calculate team statistics
     team_stats = calculate_win_percentages(matches_df)
@@ -325,6 +343,12 @@ def process_ipl_data(matches_path: str, deliveries_path: str, output_path: str):
         # Convert to pandas for single-file parquet output (for compatibility with downstream pandas scripts)
         # All processing was done in Spark - this is just for the final write
         logging.info("Converting Spark DataFrame to pandas for parquet output...")
+
+        # Convert date column to string to avoid datetime conversion issues
+        if 'date' in final_df.columns:
+            from pyspark.sql.functions import date_format
+            final_df = final_df.withColumn('date', date_format(col('date'), 'yyyy-MM-dd'))
+
         final_pandas_df = final_df.toPandas()
 
         # Save processed data
